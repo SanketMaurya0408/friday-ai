@@ -1,0 +1,492 @@
+# actions/computer_control.py
+# MARK XXV — Computer Control
+#
+# FIX: Replaced deprecated google.generativeai with google.genai
+#      in _analyze_screen_for_element()
+#
+# Capabilities:
+#   - Type text anywhere (active window, forms, fields)
+#   - Mouse click, double-click, right-click, drag
+#   - Keyboard shortcuts and key combinations
+#   - Scroll (up/down/left/right)
+#   - Window management (minimize, maximize, close, focus)
+#   - Clipboard (copy, paste, get content)
+#   - Screenshot + locate element on screen
+#   - Wait / smart wait for element to appear
+#   - Random data generation (name, email, username, password, phone, address)
+#   - Hotkey sequences
+#   - Find and click image/element on screen (AI-powered via Gemini)
+
+import json
+import sys
+import time
+import random
+import string
+import subprocess
+import platform
+from pathlib import Path
+
+try:
+    import pyautogui
+    pyautogui.FAILSAFE = True
+    pyautogui.PAUSE    = 0.05
+    _PYAUTOGUI = True
+except ImportError:
+    _PYAUTOGUI = False
+
+try:
+    import pyperclip
+    _PYPERCLIP = True
+except ImportError:
+    _PYPERCLIP = False
+
+
+def get_base_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent
+    return Path(__file__).resolve().parent.parent
+
+
+BASE_DIR        = get_base_dir()
+API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
+
+
+def _load_user_profile() -> dict:
+    memory_path = BASE_DIR / "memory" / "long_term.json"
+    try:
+        if memory_path.exists():
+            data = json.loads(memory_path.read_text(encoding="utf-8"))
+            identity = data.get("identity", {})
+            return {
+                "name":  identity.get("name",  {}).get("value", ""),
+                "age":   identity.get("age",   {}).get("value", ""),
+                "city":  identity.get("city",  {}).get("value", ""),
+                "email": identity.get("email", {}).get("value", ""),
+            }
+    except Exception:
+        pass
+    return {}
+
+
+def _ensure_pyautogui():
+    if not _PYAUTOGUI:
+        raise RuntimeError("PyAutoGUI not installed. Run: pip install pyautogui")
+
+
+_FIRST_NAMES = [
+    "Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Drew", "Quinn",
+    "Avery", "Blake", "Cameron", "Dakota", "Emerson", "Finley", "Harper"
+]
+_LAST_NAMES = [
+    "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller",
+    "Davis", "Wilson", "Moore", "Taylor", "Anderson", "Thomas", "Jackson"
+]
+_DOMAINS = ["gmail.com", "yahoo.com", "outlook.com", "proton.me", "mail.com"]
+
+
+def generate_random_data(data_type: str) -> str:
+    dt = data_type.lower().strip()
+    if dt == "first_name":
+        return random.choice(_FIRST_NAMES)
+    elif dt == "last_name":
+        return random.choice(_LAST_NAMES)
+    elif dt == "name":
+        return f"{random.choice(_FIRST_NAMES)} {random.choice(_LAST_NAMES)}"
+    elif dt == "email":
+        first = random.choice(_FIRST_NAMES).lower()
+        last  = random.choice(_LAST_NAMES).lower()
+        num   = random.randint(10, 999)
+        return f"{first}.{last}{num}@{random.choice(_DOMAINS)}"
+    elif dt == "username":
+        return f"{random.choice(_FIRST_NAMES).lower()}{random.randint(100, 9999)}"
+    elif dt == "password":
+        chars = string.ascii_letters + string.digits + "!@#$%"
+        pwd   = (
+            random.choice(string.ascii_uppercase) +
+            random.choice(string.digits) +
+            random.choice("!@#$%") +
+            "".join(random.choices(chars, k=9))
+        )
+        return "".join(random.sample(pwd, len(pwd)))
+    elif dt == "phone":
+        return f"+1{random.randint(200,999)}{random.randint(1000000,9999999)}"
+    elif dt == "birthday":
+        return f"{random.randint(1,12):02d}/{random.randint(1,28):02d}/{random.randint(1980,2000)}"
+    elif dt == "address":
+        return f"{random.randint(100,9999)} {random.choice(['Main St','Oak Ave','Park Blvd','Elm St','Cedar Ln'])}"
+    elif dt == "zip_code":
+        return str(random.randint(10000, 99999))
+    elif dt == "city":
+        return random.choice(["New York","Los Angeles","Chicago","Houston","Phoenix"])
+    return f"random_{data_type}_{random.randint(1000,9999)}"
+
+
+def _type_text(text: str, interval: float = 0.03) -> str:
+    _ensure_pyautogui()
+    time.sleep(0.3)
+    pyautogui.typewrite(text, interval=interval)
+    return f"Typed: {text[:50]}{'...' if len(text) > 50 else ''}"
+
+
+def _click(x=None, y=None, button="left", clicks=1, image=None) -> str:
+    _ensure_pyautogui()
+    if image:
+        try:
+            loc = pyautogui.locateCenterOnScreen(image, confidence=0.8)
+            if loc:
+                pyautogui.click(loc.x, loc.y, button=button, clicks=clicks)
+                return f"Clicked image: {image}"
+            return f"Image not found: {image}"
+        except Exception as e:
+            return f"Image click failed: {e}"
+    if x is not None and y is not None:
+        pyautogui.click(x, y, button=button, clicks=clicks)
+        return f"Clicked ({x}, {y}) with {button} button"
+    pyautogui.click(button=button, clicks=clicks)
+    return "Clicked at current position"
+
+
+def _hotkey(*keys) -> str:
+    _ensure_pyautogui()
+    pyautogui.hotkey(*keys)
+    return f"Hotkey: {'+'.join(keys)}"
+
+
+def _press(key: str) -> str:
+    _ensure_pyautogui()
+    pyautogui.press(key)
+    return f"Pressed: {key}"
+
+
+def _scroll(direction="down", amount=3) -> str:
+    _ensure_pyautogui()
+    clicks = amount if direction in ("up", "right") else -amount
+    if direction in ("up", "down"):
+        pyautogui.scroll(clicks)
+    else:
+        pyautogui.hscroll(clicks)
+    return f"Scrolled {direction} {amount} times"
+
+
+def _move_mouse(x, y, duration=0.3) -> str:
+    _ensure_pyautogui()
+    pyautogui.moveTo(x, y, duration=duration)
+    return f"Mouse moved to ({x}, {y})"
+
+
+def _drag(x1, y1, x2, y2, duration=0.5) -> str:
+    _ensure_pyautogui()
+    pyautogui.moveTo(x1, y1)
+    pyautogui.dragTo(x2, y2, duration=duration)
+    return f"Dragged from ({x1},{y1}) to ({x2},{y2})"
+
+
+def _clipboard_copy() -> str:
+    if _PYPERCLIP:
+        return pyperclip.paste()
+    _hotkey("ctrl", "c")
+    time.sleep(0.2)
+    return "Copied to clipboard"
+
+
+def _clipboard_set(text: str) -> str:
+    if _PYPERCLIP:
+        pyperclip.copy(text)
+        time.sleep(0.1)
+        _hotkey("ctrl", "v")
+        return f"Pasted: {text[:50]}"
+    return "pyperclip not available"
+
+
+def _screenshot(save_path=None) -> str:
+    _ensure_pyautogui()
+    if not save_path:
+        save_path = str(Path.home() / "Desktop" / "screenshot.png")
+    img = pyautogui.screenshot()
+    img.save(save_path)
+    return f"Screenshot saved: {save_path}"
+
+
+def _wait(seconds: float) -> str:
+    time.sleep(seconds)
+    return f"Waited {seconds}s"
+
+
+def _wait_for_image(image_path: str, timeout=10) -> str:
+    _ensure_pyautogui()
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            loc = pyautogui.locateCenterOnScreen(image_path, confidence=0.8)
+            if loc:
+                return f"Image found at ({loc.x}, {loc.y})"
+        except Exception:
+            pass
+        time.sleep(0.5)
+    return f"Image not found within {timeout}s"
+
+
+def _get_screen_size() -> str:
+    _ensure_pyautogui()
+    w, h = pyautogui.size()
+    return f"{w}x{h}"
+
+
+def _focus_window(title: str) -> str:
+    if platform.system() == "Windows":
+        try:
+            script = f'(New-Object -ComObject WScript.Shell).AppActivate("{title}")'
+            subprocess.run(
+                ["powershell", "-NoProfile", "-Command", script],
+                capture_output=True, timeout=5
+            )
+            time.sleep(0.3)
+            return f"Focused window: {title}"
+        except Exception as e:
+            return f"Could not focus window: {e}"
+    return "Window focus only supported on Windows"
+
+
+def _clear_field() -> str:
+    _hotkey("ctrl", "a")
+    time.sleep(0.1)
+    _press("delete")
+    return "Field cleared"
+
+
+def _smart_type(text: str, clear_first=True) -> str:
+    _ensure_pyautogui()
+    if clear_first:
+        _clear_field()
+        time.sleep(0.1)
+    if len(text) > 20 and _PYPERCLIP:
+        pyperclip.copy(text)
+        time.sleep(0.1)
+        pyautogui.hotkey("ctrl", "v")
+        return f"Smart-typed (clipboard): {text[:50]}"
+    else:
+        pyautogui.typewrite(text, interval=0.04)
+        return f"Smart-typed: {text[:50]}"
+
+
+def _analyze_screen_for_element(description: str):
+    """
+    Takes a screenshot and asks Gemini to find the element.
+    FIX: Uses google.genai (new SDK) instead of deprecated google.generativeai.
+    Returns (x, y) tuple or None.
+    """
+    try:
+        import io
+        import re
+        from google import genai
+        from google.genai import types as gtypes
+
+        with open(API_CONFIG_PATH, "r") as f:
+            api_key = json.load(f)["gemini_api_key"]
+
+        client = genai.Client(api_key=api_key)
+
+        _ensure_pyautogui()
+        w, h  = pyautogui.size()
+        img   = pyautogui.screenshot()
+        buf   = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        img_bytes = buf.getvalue()
+
+        prompt = (
+            f"This is a screenshot of a computer screen ({w}x{h} pixels). "
+            f"Find the element: '{description}'. "
+            f"Return ONLY: x,y (the center coordinates). "
+            f"If not found, return: NOT_FOUND"
+        )
+
+        response = client.models.generate_content(
+            model    = "gemini-2.0-flash",
+            contents = [
+                gtypes.Part.from_bytes(data=img_bytes, mime_type="image/png"),
+                prompt
+            ]
+        )
+
+        text = response.text.strip()
+        if "NOT_FOUND" in text:
+            return None
+
+        match = re.search(r"(\d+)\s*,\s*(\d+)", text)
+        if match:
+            return int(match.group(1)), int(match.group(2))
+
+    except Exception as e:
+        print(f"[ComputerControl] ⚠️ Screen analysis failed: {e}")
+
+    return None
+
+
+def computer_control(
+    parameters=None,
+    response=None,
+    player=None,
+    session_memory=None,
+) -> str:
+    """
+    Universal computer control.
+
+    Actions:
+      type          : Type text at cursor
+      smart_type    : Clear + type (clipboard for long text)
+      click         : Click at coordinates
+      double_click  : Double click
+      right_click   : Right click
+      hotkey        : Key combo (e.g. ctrl+c)
+      press         : Single key
+      scroll        : Scroll up/down/left/right
+      move          : Move mouse
+      drag          : Drag mouse
+      copy          : Get clipboard
+      paste         : Set + paste clipboard
+      screenshot    : Take screenshot
+      wait          : Wait N seconds
+      wait_image    : Wait for image on screen
+      clear_field   : Select all + delete
+      focus_window  : Bring window to front
+      screen_find   : AI find element → returns coordinates
+      screen_click  : AI find + click element
+      random_data   : Generate random form data
+      user_data     : Get user real data from memory
+    """
+    action = (parameters or {}).get("action", "").lower().strip()
+
+    if not action:
+        return "Please specify an action for computer_control, sir."
+
+    if player:
+        player.write_log(f"[Computer] {action}")
+
+    print(f"[ComputerControl] ▶️ {action}  {parameters}")
+
+    try:
+        if action == "type":
+            return _type_text(parameters.get("text", ""))
+
+        elif action == "smart_type":
+            return _smart_type(
+                parameters.get("text", ""),
+                clear_first=parameters.get("clear_first", True)
+            )
+
+        elif action in ("click", "left_click"):
+            return _click(
+                x=parameters.get("x"),
+                y=parameters.get("y"),
+                button="left", clicks=1,
+                image=parameters.get("image")
+            )
+
+        elif action == "double_click":
+            return _click(
+                x=parameters.get("x"),
+                y=parameters.get("y"),
+                button="left", clicks=2,
+                image=parameters.get("image")
+            )
+
+        elif action == "right_click":
+            return _click(
+                x=parameters.get("x"),
+                y=parameters.get("y"),
+                button="right", clicks=1
+            )
+
+        elif action == "move":
+            return _move_mouse(
+                x=int(parameters.get("x", 0)),
+                y=int(parameters.get("y", 0)),
+                duration=float(parameters.get("duration", 0.3))
+            )
+
+        elif action == "drag":
+            return _drag(
+                x1=int(parameters.get("x1", 0)),
+                y1=int(parameters.get("y1", 0)),
+                x2=int(parameters.get("x2", 0)),
+                y2=int(parameters.get("y2", 0))
+            )
+
+        elif action == "hotkey":
+            keys = parameters.get("keys", "")
+            if isinstance(keys, str):
+                keys = [k.strip() for k in keys.split("+")]
+            return _hotkey(*keys)
+
+        elif action == "press":
+            return _press(parameters.get("key", "enter"))
+
+        elif action == "scroll":
+            return _scroll(
+                direction=parameters.get("direction", "down"),
+                amount=int(parameters.get("amount", 3))
+            )
+
+        elif action == "copy":
+            return _clipboard_copy()
+
+        elif action == "paste":
+            return _clipboard_set(parameters.get("text", ""))
+
+        elif action == "screenshot":
+            return _screenshot(parameters.get("path"))
+
+        elif action == "wait":
+            return _wait(float(parameters.get("seconds", 1.0)))
+
+        elif action == "wait_image":
+            return _wait_for_image(
+                parameters.get("image", ""),
+                timeout=int(parameters.get("timeout", 10))
+            )
+
+        elif action == "clear_field":
+            return _clear_field()
+
+        elif action == "focus_window":
+            return _focus_window(parameters.get("title", ""))
+
+        elif action == "screen_size":
+            return _get_screen_size()
+
+        elif action == "screen_find":
+            description = parameters.get("description", "")
+            coords = _analyze_screen_for_element(description)
+            if coords:
+                return f"{coords[0]},{coords[1]}"
+            return "NOT_FOUND"
+
+        elif action == "screen_click":
+            description = parameters.get("description", "")
+            coords = _analyze_screen_for_element(description)
+            if coords:
+                time.sleep(0.2)
+                _click(x=coords[0], y=coords[1])
+                return f"Found and clicked: {description} at {coords}"
+            return f"Could not find on screen: {description}"
+
+        elif action == "random_data":
+            result = generate_random_data(parameters.get("type", "name"))
+            print(f"[ComputerControl] 🎲 {parameters.get('type')}: {result}")
+            return result
+
+        elif action == "user_data":
+            field   = parameters.get("field", "name")
+            profile = _load_user_profile()
+            value   = profile.get(field, "")
+            if not value:
+                value = generate_random_data(field)
+            return value
+
+        else:
+            return f"Unknown action: '{action}'"
+
+    except Exception as e:
+        print(f"[ComputerControl] ❌ {e}")
+        return f"computer_control failed: {e}"

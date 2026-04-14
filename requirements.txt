@@ -1,0 +1,44 @@
+ # ── Core AI / Audio ────────────────────────────────────────────────────────────
+google-genai
+sounddevice
+
+# ── UI ─────────────────────────────────────────────────────────────────────────
+pillow
+psutil
+
+# ── Browser automation ──────────────────────────────────────────────────────────
+playwright
+
+# ── Web / Search ───────────────────────────────────────────────────────────────
+requests
+beautifulsoup4
+duckduckgo-search
+
+# ── System / Input control ─────────────────────────────────────────────────────
+pyautogui
+pyperclip
+pygetwindow
+pywinauto
+comtypes
+pycaw
+
+# ── Screen / Vision ─────────────────────────────────────────────────────────────
+opencv-python
+numpy
+mss
+
+# ── Notifications / File utils ─────────────────────────────────────────────────
+win10toast
+send2trash
+
+# ── YouTube ────────────────────────────────────────────────────────────────────
+youtube-transcript-api
+
+# ── Offline mode (optional — install for full offline support) ─────────────────
+# edge-tts
+# pyttsx3
+# pyaudio
+# vosk
+# ollama
+# playsound
+# SpeechRecognition
