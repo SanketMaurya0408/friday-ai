@@ -34,11 +34,3 @@ send2trash
 # ── YouTube ────────────────────────────────────────────────────────────────────
 youtube-transcript-api
 
-# ── Offline mode (optional — install for full offline support) ─────────────────
-# edge-tts
-# pyttsx3
-# pyaudio
-# vosk
-# ollama
-# playsound
-# SpeechRecognition
