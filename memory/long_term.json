@@ -1,8 +1,8 @@
 {
   "identity": {
     "name": {
-      "value": "संकेत मौर्य",
-      "updated": "2026-04-11"
+      "value": "",
+      "updated": ""
     }
   },
   "preferences": {
@@ -19,45 +19,8 @@
   "relationships": {},
   "wishes": {},
   "notes": {
-    "weather_meerut_modipuram": {
-      "value": "Temperature: 37°C, Feels like: 36°C, Sunny, Humidity: 14%, Wind speed: 26 km/h",
-      "updated": "2026-04-14"
-    }
-  },
-  "user_info": {
-    "name": {
-      "value": "संकेत मौर्य",
-      "updated": "2026-04-11"
-    },
-    "college": {
-      "value": "Meerut (for B.Tech)",
-      "updated": "2026-04-12"
-    },
-    "study_year": {
-      "value": "B.Tech 4th year",
-      "updated": "2026-04-11"
-    },
-    "degree": {
-      "value": "B.Tech 4th year at Shobhit University, Modipuram, Meerut",
-      "updated": "2026-04-12"
-    },
-    "primary_phone": {
-      "value": "[8528011868]",
-      "updated": "2026-04-12"
-    },
-    "alternate_phone": {
-      "value": "[9557011868]",
-      "updated": "2026-04-12"
-    },
-    "weather_meerut_modipuram": {
-      "value": "Temperature: 37°C, Feels like: 36°C, Sunny, Humidity: 14%, Wind speed: 26 km/h",
-      "updated": "2026-04-14"
-    }
-  },
-  "other notes": {
-    "weather_meerut_modipuram": {
-      "value": "Temperature: 37°C, Feels like: 36°C, Sunny, Humidity: 14%, Wind speed: 26 km/h",
-      "updated": "2026-04-14"
+    "weather": {
+      "value": "",
+      "updated": ""
     }
   }
-}
