@@ -1,5 +1,5 @@
 """
-memory_manager.py — MARK XXV Memory System
+memory_manager.py — Memory System
 ============================================
 Fixes applied:
   - Replaced deprecated google.generativeai with google.genai
