@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+config/api_keys.local.json
+*.pem
+*.key
+
+# Local data and memory
+*.db
+*.sqlite
+*.sqlite3
+*.log
+memory/*.json
+!memory/example*.json
+
+# Build output
+dist/
+build/
+*.spec
+*.egg-info/
+
+# Playwright and test output
+test-results/
+playwright-report/
+blob-report/
+
+# Media and captures
+screenshots/
+recordings/
+*.wav
+*.mp3
+*.mp4
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
